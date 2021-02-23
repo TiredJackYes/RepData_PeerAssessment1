@@ -1,0 +1,101 @@
+---
+title: "Assignment"
+output: html_document
+---
+Loading the data into R and making sure that it reads dates as dates.
+```{r}
+library(data.table)
+activity <- read.csv("C:/Users/Miro/Documents/Reproducible Research/repdata_data_activity/activity.csv", 
+                     header = TRUE, sep = ",")
+
+activity$date <- as.Date(activity$date)
+```
+
+Now grouping steps by intervals. (And loading package dplyr).
+
+```{r}
+library(dplyr)
+stepsperday <- activity %>% 
+  group_by(date) %>% 
+  summarize(TotalSteps=sum(steps))
+```
+
+Now, grouped, make a histogram.
+
+```{r}
+hist(stepsperday$TotalSteps, main = "Steps and how many there are each day", xlab = "All the STEEEPS Per day", ylab = "the Count of spets")
+```
+
+Completing steps and calculating the mean and the median.
+```{r}
+SomeStepsPerDay <- stepsperday[complete.cases(stepsperday), ]
+meanofsteps <- mean(SomeStepsPerDay$TotalSteps)
+medianofsteps <-median(SomeStepsPerDay$TotalSteps)
+```
+
+Complete cases in the original datasets and making a datset grouped by interval and average number of steps taken. Then plotting it.  
+```{r}
+activity <- activity[complete.cases(activity), ]
+timesteps <- group_by(activity, interval) %>%
+summarise(AverageSteps=mean(steps))
+plot(timesteps$interval, timesteps$AverageSteps, 
+      type = "b", xlab = "Time Interval", ylab = "Steps", main = "average steps in time")
+```
+
+Finding the maximum interval
+```{r}
+MaximumStepInterval <- timesteps$interval[which.max(timesteps$AverageSteps)]
+```
+
+Loading in data again to have raw data
+``` {r}
+rawactivity <- read.csv("C:/Users/Miro/Documents/Reproducible Research/repdata_data_activity/activity.csv", 
+                     header = TRUE, sep = ",")
+```
+
+Filling in missing data
+
+```{r}
+fillrawdata <- rawactivity
+for (i in 1:nrow(fillrawdata)) {
+  if (is.na(fillrawdata$steps[i])) {
+    ndx <- which(fillrawdata$interval[i] == timesteps$interval)
+    fillrawdata$steps[i] <- timesteps[ndx,]$AverageSteps
+  }
+}
+```
+
+Grouping by date and making total number of steps after missing values were imputed.
+```{r}
+fillrawdatasteps <- fillrawdata %>% 
+  group_by(date) %>% 
+  summarize(TotalSteps=sum(steps))
+hist(fillrawdatasteps$TotalSteps, main = "Steps and how many there are each day", xlab = "All the STEEEPS Per day", ylab = "the Count of spets")
+```
+
+Making sure the date in the new raw data is read as date, then defining what is a weekday and whats a weekend. 
+``` {r}
+fillrawdata$date <- as.Date(fillrawdata$date)
+fillrawdata$day <- weekdays(fillrawdata$date)
+fillrawdata$day[fillrawdata$day %in% c("Saturday", "Sunday")] <- "weekend"
+fillrawdata$day[fillrawdata$day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")] <- "weekday"
+```
+
+Using the new data to group it by weekday, interval and calculate the total steps per day. 
+``` {r}
+fillrawdataday <- fillrawdata %>% 
+  group_by(day, interval) %>% 
+  summarize(TotalSteps=sum(steps))
+```
+
+Npw subsetting the dataset into two new datasets - one for weekdays and the other for weekends.
+```{r}
+fillrawdataweekend <- subset(fillrawdataday, day == "weekend")
+fillrawdataweekday <- subset(fillrawdataday, day == "weekday")
+```
+
+Now plotting two graphs by weekends and weekdays. 
+``` {r}
+plot(fillrawdataweekend$TotalSteps, type = "l", xlab = "Weekends", ylab = "Steps", main = "Steps in weekends")
+plot(fillrawdataweekday$TotalSteps, type = "l", xlab = "Weekdays", ylab = "Steps", main = "Steps in weekdays")
+```
